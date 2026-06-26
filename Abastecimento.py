@@ -225,13 +225,16 @@ def processar_relatorio(ano, mes):
     # Etapa A: Salvar os dados puros via Pandas
     with pd.ExcelWriter(nome_arquivo, engine="openpyxl") as writer:
         df_ticket_completo.sort_values(by="Data").to_excel(writer, sheet_name="Aba 1 - Ticketlog Bruto", index=False)
-        df_relatorio.to_excel(writer, sheet_name="Aba 2 - Relatório Real", index=False)
+        df_relatorio.to_excel(writer, sheet_name="Aba 2 - Relatorio Real", index=False) # Tirei o acento aqui por segurança
         
     # Etapa B: Arrumar o visual do Excel (pontos, vírgulas e o 0E-2)
     wb = load_workbook(nome_arquivo)
     
+    # Pegamos as abas pela posição matemática (0 e 1) para o servidor Linux não se perder
+    ws_bruto = wb.worksheets[0]
+    ws_real = wb.worksheets[1]
+    
     # Aba 2 - Consolidada
-    ws_real = wb["Aba 2 - Relatório Real"]
     for row in ws_real.iter_rows(min_row=2):
         for cell in row:
             if isinstance(cell.value, (int, float)):
@@ -240,7 +243,6 @@ def processar_relatorio(ano, mes):
                 cell.number_format = '#,##0.00'  # Força 2 casas decimais com separador
                 
     # Aba 1 - Bruta
-    ws_bruto = wb["Aba 1 - Ticketlog Bruto"]
     for row in ws_bruto.iter_rows(min_row=2):
         for cell in row:
             if isinstance(cell.value, (int, float)):
