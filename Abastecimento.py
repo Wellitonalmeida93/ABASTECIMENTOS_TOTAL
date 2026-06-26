@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from email.message import EmailMessage
 from dotenv import load_dotenv
-from openpyxl import load_workbook  # Biblioteca adicionada para arrumar a formatação
+from openpyxl import load_workbook 
 
 # Carrega as senhas (no GitHub ele ignora isso e pega dos Secrets direto)
 load_dotenv()
@@ -225,12 +225,12 @@ def processar_relatorio(ano, mes):
     # Etapa A: Salvar os dados puros via Pandas
     with pd.ExcelWriter(nome_arquivo, engine="openpyxl") as writer:
         df_ticket_completo.sort_values(by="Data").to_excel(writer, sheet_name="Aba 1 - Ticketlog Bruto", index=False)
-        df_relatorio.to_excel(writer, sheet_name="Aba 2 - Relatorio Real", index=False) # Tirei o acento aqui por segurança
+        df_relatorio.to_excel(writer, sheet_name="Aba 2 - Relatorio Real", index=False)
         
     # Etapa B: Arrumar o visual do Excel (pontos, vírgulas e o 0E-2)
     wb = load_workbook(nome_arquivo)
     
-    # Pegamos as abas pela posição matemática (0 e 1) para o servidor Linux não se perder
+    # Usando posição [0] e [1] para o Python nunca mais tentar ler o nome da aba
     ws_bruto = wb.worksheets[0]
     ws_real = wb.worksheets[1]
     
