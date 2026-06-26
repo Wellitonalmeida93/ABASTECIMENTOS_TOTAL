@@ -263,5 +263,5 @@ if __name__ == "__main__":
     
     if arquivo_gerado:
         # Se quiser testar o envio de email, descomente a linha abaixo e certifique-se de preencher as senhas no .env
-        # enviar_email(arquivo_gerado)
+        enviar_email(arquivo_gerado)
         print("🎉 Processo 100% finalizado com sucesso!")
