@@ -11,7 +11,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from email.message import EmailMessage
 from dotenv import load_dotenv
-from openpyxl import load_workbook 
 
 # Carrega as senhas (no GitHub ele ignora isso e pega dos Secrets direto)
 load_dotenv()
@@ -217,40 +216,35 @@ def processar_relatorio(ano, mes):
     df_relatorio = df_final[cols_finais].sort_values(by="PLACA").round(2)
     
     # =====================================================================
-    # 3.1 SALVANDO E APLICANDO FORMATAÇÃO DE MOEDA/DECIMAIS BRASILEIRA
+    # 3.1 SALVANDO E APLICANDO FORMATAÇÃO (NA MEMÓRIA, SEM TRAVAR O DISCO)
     # =====================================================================
     nome_arquivo = f"Relatorio_Fechamento_{ano}_{mes:02d}.xlsx"
     
-    # Etapa A: Salvar os dados puros via Pandas
     with pd.ExcelWriter(nome_arquivo, engine="openpyxl") as writer:
         df_ticket_completo.sort_values(by="Data").to_excel(writer, sheet_name="Aba 1 - Ticketlog Bruto", index=False)
         df_relatorio.to_excel(writer, sheet_name="Aba 2 - Relatorio Real", index=False)
         
-    # Etapa B: Arrumar o visual do Excel (pontos, vírgulas e o 0E-2)
-    wb = load_workbook(nome_arquivo)
-    
-    # TRUQUE INFALÍVEL: Pegamos a lista exata de nomes que o próprio sistema gerou
-    nomes_abas = wb.sheetnames
-    ws_bruto = wb[nomes_abas[0]]
-    ws_real = wb[nomes_abas[1]]
-    
-    # Aba 2 - Consolidada
-    for row in ws_real.iter_rows(min_row=2):
-        for cell in row:
-            if isinstance(cell.value, (int, float)):
-                if cell.value == 0:
-                    cell.value = 0.0  # Limpa o bug do 0E-2
-                cell.number_format = '#,##0.00'  # Força 2 casas decimais com separador
-                
-    # Aba 1 - Bruta
-    for row in ws_bruto.iter_rows(min_row=2):
-        for cell in row:
-            if isinstance(cell.value, (int, float)):
-                if cell.value == 0:
-                    cell.value = 0.0
-                cell.number_format = '#,##0.00'
+        # Pega as planilhas direto da memória, enquanto o arquivo está aberto para escrita
+        ws_bruto = writer.sheets["Aba 1 - Ticketlog Bruto"]
+        ws_real = writer.sheets["Aba 2 - Relatorio Real"]
+        
+        # Formata Aba 2 - Consolidada
+        for row in ws_real.iter_rows(min_row=2):
+            for cell in row:
+                if isinstance(cell.value, (int, float)):
+                    if cell.value == 0:
+                        cell.value = 0.0
+                    cell.number_format = '#,##0.00'
+                    
+        # Formata Aba 1 - Bruta
+        for row in ws_bruto.iter_rows(min_row=2):
+            for cell in row:
+                if isinstance(cell.value, (int, float)):
+                    if cell.value == 0:
+                        cell.value = 0.0
+                    cell.number_format = '#,##0.00'
 
-    wb.save(nome_arquivo)
+    # Quando sai do bloco "with", o Pandas salva e fecha tudo com segurança
     return nome_arquivo
 
 # =====================================================================
