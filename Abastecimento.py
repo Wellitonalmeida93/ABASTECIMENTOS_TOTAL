@@ -11,8 +11,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from email.message import EmailMessage
 from dotenv import load_dotenv
+from openpyxl import load_workbook  # Biblioteca adicionada para arrumar a formatação
 
-# Carrega as senhas do arquivo .env para a sua máquina local (VS Code)
+# Carrega as senhas (no GitHub ele ignora isso e pega dos Secrets direto)
 load_dotenv()
 
 # =====================================================================
@@ -216,11 +217,38 @@ def processar_relatorio(ano, mes):
     
     df_relatorio = df_final[cols_finais].sort_values(by="PLACA").round(2)
     
+    # =====================================================================
+    # 3.1 SALVANDO E APLICANDO FORMATAÇÃO DE MOEDA/DECIMAIS BRASILEIRA
+    # =====================================================================
     nome_arquivo = f"Relatorio_Fechamento_{ano}_{mes:02d}.xlsx"
+    
+    # Etapa A: Salvar os dados puros via Pandas
     with pd.ExcelWriter(nome_arquivo, engine="openpyxl") as writer:
         df_ticket_completo.sort_values(by="Data").to_excel(writer, sheet_name="Aba 1 - Ticketlog Bruto", index=False)
         df_relatorio.to_excel(writer, sheet_name="Aba 2 - Relatório Real", index=False)
         
+    # Etapa B: Arrumar o visual do Excel (pontos, vírgulas e o 0E-2)
+    wb = load_workbook(nome_arquivo)
+    
+    # Aba 2 - Consolidada
+    ws_real = wb["Aba 2 - Relatório Real"]
+    for row in ws_real.iter_rows(min_row=2):
+        for cell in row:
+            if isinstance(cell.value, (int, float)):
+                if cell.value == 0:
+                    cell.value = 0.0  # Limpa o bug do 0E-2
+                cell.number_format = '#,##0.00'  # Força 2 casas decimais com separador
+                
+    # Aba 1 - Bruta
+    ws_bruto = wb["Aba 1 - Ticketlog Bruto"]
+    for row in ws_bruto.iter_rows(min_row=2):
+        for cell in row:
+            if isinstance(cell.value, (int, float)):
+                if cell.value == 0:
+                    cell.value = 0.0
+                cell.number_format = '#,##0.00'
+
+    wb.save(nome_arquivo)
     return nome_arquivo
 
 # =====================================================================
@@ -233,13 +261,13 @@ def enviar_email(caminho_arquivo):
         msg['Subject'] = f"Relatório Fechamento - {caminho_arquivo}"
         msg['From'] = EMAIL_REMETENTE
         msg['To'] = EMAIL_DESTINO
-        msg.set_content("Segue em anexo o relatório automatizado consolidado.\n\nGerado via GitHub Actions/VS Code.")
+        msg.set_content("Segue em anexo o relatório automatizado consolidado.\n\nGerado via GitHub Actions.")
 
         with open(caminho_arquivo, 'rb') as f:
             file_data = f.read()
         msg.add_attachment(file_data, maintype='application', subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename=caminho_arquivo)
 
-        # Usando Gmail (Se for Office 365: 'smtp.office365.com', porta 587 com starttls)
+        # Usando Gmail. Se for Office 365, basta trocar para 'smtp.office365.com' e porta 587 (com STARTTLS).
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(EMAIL_REMETENTE, SENHA_EMAIL)
             smtp.send_message(msg)
@@ -262,6 +290,5 @@ if __name__ == "__main__":
     arquivo_gerado = processar_relatorio(ano_alvo, mes_alvo)
     
     if arquivo_gerado:
-        # Se quiser testar o envio de email, descomente a linha abaixo e certifique-se de preencher as senhas no .env
         enviar_email(arquivo_gerado)
         print("🎉 Processo 100% finalizado com sucesso!")
