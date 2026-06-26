@@ -40,4 +40,4 @@ jobs:
           EMAIL_REMETENTE: ${{ secrets.EMAIL_REMETENTE }}
           SENHA_EMAIL: ${{ secrets.SENHA_EMAIL }}
           EMAIL_DESTINO: ${{ secrets.EMAIL_DESTINO }}
-        run: python Master.py
+        run: python Abastecimento.py
