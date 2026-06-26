@@ -27,7 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests pandas openpyxl psycopg2-binary python-dotenv tqdm
 
-      - name: Rodar o Master.py
+      - name: Rodar o Abastecimento.py
         env:
           TOKEN_GOBRAX: ${{ secrets.TOKEN_GOBRAX }}
           DB_HOST: ${{ secrets.DB_HOST }}
