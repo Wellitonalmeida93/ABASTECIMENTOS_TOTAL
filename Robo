@@ -1,0 +1,43 @@
+name: Robô de Fechamento de Frota
+
+on:
+  schedule:
+    # Roda todos os dias às 03:00 da manhã (Horário de Brasília)
+    # Como o servidor usa UTC, colocamos 06:00
+    - cron: '0 6 * * *'
+  
+  # Esse comando abaixo permite que a gente clique num botão para rodar manualmente e testar!
+  workflow_dispatch: 
+
+jobs:
+  rodar-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar o Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Instalar bibliotecas
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pandas openpyxl psycopg2-binary python-dotenv tqdm
+
+      - name: Rodar o Master.py
+        env:
+          TOKEN_GOBRAX: ${{ secrets.TOKEN_GOBRAX }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          AUTHORIZATION_TICKET: ${{ secrets.AUTHORIZATION_TICKET }}
+          CODIGO_CLIENTE: ${{ secrets.CODIGO_CLIENTE }}
+          EMAIL_REMETENTE: ${{ secrets.EMAIL_REMETENTE }}
+          SENHA_EMAIL: ${{ secrets.SENHA_EMAIL }}
+          EMAIL_DESTINO: ${{ secrets.EMAIL_DESTINO }}
+        run: python Master.py
