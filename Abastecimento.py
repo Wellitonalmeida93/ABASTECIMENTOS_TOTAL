@@ -268,12 +268,13 @@ def processar_relatorio(ano, mes):
     df_gobrax = extrair_gobrax(primeiro_dia.strftime("%Y-%m-%d %H:%M:%S"), ultimo_dia.strftime("%Y-%m-%d %H:%M:%S"))
     df_ticket_completo = extrair_ticketlog(primeiro_dia, ultimo_dia)
 
-    if df_ticket_completo.empty and df_gobrax.empty:
-        print("⚠️ Sem dados para processar.")
+    # 🟢 ADICIONE ESTA TRAVA AQUI:
+    if df_ticket_completo.empty:
+        print(f"⚠️ Nenhum dado retornado da Ticketlog para {mes:02d}/{ano}. Processamento cancelado para preservar o banco.")
         return False
 
     print("\n[3/4] 🧠 A processar inteligência de dados e regras de negócio...")
-    df_ticket = df_ticket_completo.copy()
+    # ... segue o resto da função normalmente
 
     if not df_ticket.empty and "Litros" in df_ticket.columns:
         df_ticket["Litros"] = pd.to_numeric(df_ticket["Litros"], errors="coerce").fillna(0)
