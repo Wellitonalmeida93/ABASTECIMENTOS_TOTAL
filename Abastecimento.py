@@ -13,23 +13,23 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Mantenha suas funções de extração originais intocadas
+# Mantenha suas funções de extração originais intocadas abaixo:
 def extrair_gobrax(data_inicio, data_fim):
-    pass # (MANTENHA A SUA IMPLEMENTAÇÃO ORIGINAL AQUI)
+    pass # <-- NÃO APAGUE A SUA FUNÇÃO, mantenha o código original da Gobrax aqui
 
 def extrair_ticketlog(data_inicio, data_fim):
-    pass # (MANTENHA A SUA IMPLEMENTAÇÃO ORIGINAL AQUI)
+    pass # <-- NÃO APAGUE A SUA FUNÇÃO, mantenha o código original da Ticketlog aqui
 
 def processar_relatorio(ano, mes):
     print(f"\n🚀 Iniciando processamento para {mes:02d}/{ano}...")
 
-    # Lógica original de datas
+    # 1. LIMITA A DATA ATÉ O DIA DE HOJE (Evita o erro da API da Ticketlog)
     primeiro_dia = datetime(ano, mes, 1)
-    ultimo_dia = datetime(ano, mes, calendar.monthrange(ano, mes)[1], 23, 59, 59)
+    ultimo_dia_mes = datetime(ano, mes, calendar.monthrange(ano, mes)[1], 23, 59, 59)
+    ultimo_dia = min(ultimo_dia_mes, datetime.now()) # <-- Trava no dia atual!
 
     print(f"📅 Período: {primeiro_dia.strftime('%d/%m/%Y')} até {ultimo_dia.strftime('%d/%m/%Y %H:%M:%S')}")
 
-    # 1. Extração direta
     print("[1/4] 📡 Buscando dados na Gobrax...")
     df_gobrax = extrair_gobrax(
         primeiro_dia.strftime("%Y-%m-%d %H:%M:%S"), 
@@ -38,6 +38,11 @@ def processar_relatorio(ano, mes):
 
     print("[2/4] ⛽ Buscando dados na Ticketlog...")
     df_ticket_completo = extrair_ticketlog(primeiro_dia, ultimo_dia)
+
+    # 2. SE A TICKETLOG MANDAR VAZIO, ELE PULA EM VEZ DE DAR CRASH E PARAR TUDO
+    if df_ticket_completo is None or df_ticket_completo.empty:
+        print(f"⚠️ A API não retornou dados para {mes:02d}/{ano}. Pulando...")
+        return False
 
     print("\n[3/4] 🧠 Processando inteligência de dados...")
 
