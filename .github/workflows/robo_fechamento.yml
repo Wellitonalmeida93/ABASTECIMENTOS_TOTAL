@@ -2,9 +2,9 @@ name: Executar Abastecimento e Supabase
 
 on:
   schedule:
-    # Roda automaticamente todos os dias às 06:00 da manhã (Horário de Brasília -> 09:00 UTC)
+    # Roda automaticamente todos os dias às 06:00 (Horário de Brasília -> 09:00 UTC)
     - cron: '0 9 * * *'
-  workflow_dispatch: # Permite disparar manualmente pelo botão "Run workflow"
+  workflow_dispatch: # Permite o botão manual "Run workflow"
 
 jobs:
   executar-script:
@@ -19,15 +19,18 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Instalar Dependências do Python
+      - name: Instalar Dependências
         run: |
           python -m pip install --upgrade pip
           pip install pandas requests supabase psycopg2-binary tqdm openpyxl python-dotenv
 
       - name: Rodar o Abastecimento.py
         env:
+          # 🟢 PONTE DE CREDENCIAIS COM O SUPABASE (FUNDAMENTAL):
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          
+          # 🟢 OUTRAS CREDENCIAIS DO SEU PROJETO:
           TOKEN_GOBRAX: ${{ secrets.TOKEN_GOBRAX }}
           AUTHORIZATION_TICKET: ${{ secrets.AUTHORIZATION_TICKET }}
           CODIGO_CLIENTE: ${{ secrets.CODIGO_CLIENTE }}
@@ -36,9 +39,4 @@ jobs:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          EMAIL_USER: ${{ secrets.EMAIL_USER }}
-          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
         run: python Abastecimento.py
