@@ -58,7 +58,12 @@ EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
 EMAIL_TO = os.getenv("EMAIL_TO")
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.office365.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+smtp_port_env = os.getenv("SMTP_PORT", "")
+SMTP_PORT = (
+    int(smtp_port_env)
+    if smtp_port_env and smtp_port_env.strip().isdigit()
+    else 587
+)
 
 # Credenciais Supabase
 SUPABASE_URL = os.getenv("SUPABASE_URL")
