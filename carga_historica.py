@@ -1,18 +1,16 @@
 import time
-# Importa a função principal do seu script que já envia tudo pro Supabase
 from Abastecimento import processar_relatorio
 
 # ---------------------------------------------------------------------------
-# 📅 DEFINA AQUI QUAIS ANOS E MESES DESEJA CARREGAR
+# 📅 CONFIGURAÇÃO PARA OS ANOS DE 2025 E 2026 (19 MESES NO TOTAL)
 # ---------------------------------------------------------------------------
 ANOS_E_MESES = [
-    (2024, range(1, 13)),  # 2024: Todos os meses (de 1 a 12)
-    (2025, range(1, 13)),  # 2025: Todos os meses (de 1 a 12)
-    (2026, range(1, 7)),   # 2026: De Janeiro a Junho (já que Julho acabou de rodar)
+    (2025, range(1, 13)),  # 2025: Janeiro a Dezembro (1 a 12)
+    (2026, range(1, 8)),   # 2026: Janeiro a Julho (1 a 7)
 ]
 
 if __name__ == "__main__":
-    print("🚀 INICIANDO CARGA HISTÓRICA COMPLETA NO SUPABASE...\n")
+    print("🚀 INICIANDO CARGA HISTÓRICA (2025 e 2026) NO SUPABASE...\n")
 
     total_meses = sum(len(meses) for _, meses in ANOS_E_MESES)
     contador = 0
@@ -21,20 +19,19 @@ if __name__ == "__main__":
         for mes in meses:
             contador += 1
             print("=" * 60)
-            print(f"📌 [{contador}/{total_meses}] Processando Histórico: {mes:02d}/{ano}")
+            print(f"📌 [{contador}/{total_meses}] Processando Mês: {mes:02d}/{ano}")
             print("=" * 60)
 
             try:
                 sucesso = processar_relatorio(ano, mes)
                 if sucesso:
-                    print(f"✅ Mês {mes:02d}/{ano} enviado com sucesso para ambas as tabelas!")
+                    print(f"✅ Mês {mes:02d}/{ano} enviado com sucesso para o Supabase!")
                 else:
-                    print(f"⚠️ Sem dados registrados para {mes:02d}/{ano}.")
+                    print(f"⚠️ Mês {mes:02d}/{ano} não foi gravado (sem dados da API).")
             except Exception as e:
                 print(f"❌ Erro ao processar {mes:02d}/{ano}: {e}")
 
-            # Pausa de 2 segundos para não sobrecarregar as APIs
-            time.sleep(2)
+            # Pausa de 3 segundos entre os meses para evitar bloqueios de API
+            time.sleep(3)
 
-    print("\n🎉 CARGA HISTÓRICA CONCLUÍDA COM SUCESSO!")
-    print("As duas tabelas (fato_abastecimento e fato_fechamento_frota) estão 100% atualizadas no Supabase!")
+    print("\n🎉 CARGA HISTÓRICA (2025 + 2026) CONCLUÍDA COM SUCESSO!")
