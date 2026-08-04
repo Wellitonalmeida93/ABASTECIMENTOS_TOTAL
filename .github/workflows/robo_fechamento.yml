@@ -1,42 +1,43 @@
-name: Executar Abastecimento e Supabase
+name: Robô de Fechamento de Frota
 
 on:
   schedule:
-    # Roda automaticamente todos os dias às 06:00 (Horário de Brasília -> 09:00 UTC)
-    - cron: '0 9 * * *'
-  workflow_dispatch: # Permite o botão manual "Run workflow"
+    # Roda todos os dias às 03:00 da manhã (Horário de Brasília)
+    # Como o servidor usa UTC, colocamos 06:00
+    - cron: '0 6 * * *'
+  
+  # Esse comando abaixo permite que a gente clique num botão para rodar manualmente e testar!
+  workflow_dispatch: 
 
 jobs:
-  executar-script:
+  rodar-script:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar Código do Repositório
+      - name: Baixar o código do repositório
         uses: actions/checkout@v4
 
-      - name: Configurar Ambiente Python
-        uses: actions/setup-python@v4
+      - name: Preparar o Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Instalar Dependências
+      - name: Instalar bibliotecas
         run: |
           python -m pip install --upgrade pip
-          pip install pandas requests supabase psycopg2-binary tqdm openpyxl python-dotenv
+          pip install requests pandas openpyxl psycopg2-binary python-dotenv tqdm
 
       - name: Rodar o Abastecimento.py
         env:
-          # 🟢 PONTE DE CREDENCIAIS COM O SUPABASE (FUNDAMENTAL):
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          
-          # 🟢 OUTRAS CREDENCIAIS DO SEU PROJETO:
           TOKEN_GOBRAX: ${{ secrets.TOKEN_GOBRAX }}
-          AUTHORIZATION_TICKET: ${{ secrets.AUTHORIZATION_TICKET }}
-          CODIGO_CLIENTE: ${{ secrets.CODIGO_CLIENTE }}
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          AUTHORIZATION_TICKET: ${{ secrets.AUTHORIZATION_TICKET }}
+          CODIGO_CLIENTE: ${{ secrets.CODIGO_CLIENTE }}
+          EMAIL_REMETENTE: ${{ secrets.EMAIL_REMETENTE }}
+          SENHA_EMAIL: ${{ secrets.SENHA_EMAIL }}
+          EMAIL_DESTINO: ${{ secrets.EMAIL_DESTINO }}
         run: python Abastecimento.py
