@@ -23,12 +23,12 @@ DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 
-# Banco Supabase (Destino)
-SUPA_HOST = os.getenv("DB_HOST_SUPA", "aws-0-sa-east-1.pooler.supabase.com")
-SUPA_PORT = os.getenv("DB_PORT_SUPA", "6543")
-SUPA_NAME = os.getenv("DB_NAME_SUPA", "postgres")
-SUPA_USER = os.getenv("DB_USER_SUPA", "postgres.ndnwtrnjclsbihvthdrg")
-SUPA_PASSWORD = os.getenv("DB_PASSWORD_SUPA")
+# Banco Supabase (Destino) - Com Fallback Automático caso o Secret venha vazio
+SUPA_HOST = os.getenv("DB_HOST_SUPA") or "aws-0-sa-east-1.pooler.supabase.com"
+SUPA_PORT = os.getenv("DB_PORT_SUPA") or "6543"
+SUPA_NAME = os.getenv("DB_NAME_SUPA") or "postgres"
+SUPA_USER = os.getenv("DB_USER_SUPA") or "postgres.ndnwtrnjclsbihvthdrg"
+SUPA_PASSWORD = os.getenv("DB_PASSWORD_SUPA") or "35XLBG0ReOAUVjin"
 
 MAX_WORKERS = 10
 
@@ -192,13 +192,12 @@ def salvar_no_supabase(registros):
     print(f"✅ {len(registros)} registros salvos/atualizados com sucesso no Supabase!")
 
 # =====================================================================
-# 5. EXECUÇÃO PRINCIPAL (MÊS VIGENTE CONTÍNUO + FILTRO DE ZERADOS)
+# 5. EXECUÇÃO PRINCIPAL
 # =====================================================================
 def executar_rotina_automatica():
     hoje = datetime.now()
     ontem = hoje - timedelta(days=1)
     
-    # Define automaticamente o 1º dia do mês corrente
     primeiro_dia_mes_atual = ontem.replace(day=1)
     
     data_inicio_str = primeiro_dia_mes_atual.strftime("%Y-%m-%d 00:00:00")
@@ -223,7 +222,6 @@ def executar_rotina_automatica():
         for f in tqdm(as_completed(futures), total=len(futures), desc="Sincronizando Gobrax"):
             res_list = f.result()
             for res in res_list:
-                # Descarta dias sem rodagem ou sem consumo (zerados/vazios)
                 if (res["km_total"] and res["km_total"] > 0) or (res["consumo_total"] and res["consumo_total"] > 0):
                     registros.append(res)
 
