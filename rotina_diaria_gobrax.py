@@ -16,7 +16,7 @@ load_dotenv(override=True)
 TOKEN_GOBRAX = os.getenv("TOKEN_GOBRAX")
 URL_GOBRAX = "https://gateway-v3.gobrax.com.br:8889/api/v1/vehicle-statistics"
 
-# Banco do Sistema / Empresa (Secrets no GitHub Actions)
+# Banco do Sistema / Empresa (Origem das placas)
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME")
@@ -28,12 +28,12 @@ SUPA_HOST = os.getenv("DB_HOST_SUPA", "aws-0-sa-east-1.pooler.supabase.com")
 SUPA_PORT = os.getenv("DB_PORT_SUPA", "6543")
 SUPA_NAME = os.getenv("DB_NAME_SUPA", "postgres")
 SUPA_USER = os.getenv("DB_USER_SUPA", "postgres.ndnwtrnjclsbihvthdrg")
-SUPA_PASSWORD = os.getenv("DB_PASSWORD_SUPA", "35XLBG0ReOAUVjin")
+SUPA_PASSWORD = os.getenv("DB_PASSWORD_SUPA")
 
-MAX_WORKERS = 15
+MAX_WORKERS = 10
 
 # =====================================================================
-# 2. CONSULTA AO BANCO COM SUAS TABELAS E JOINS COMPLETOS
+# 2. CONSULTA AO BANCO DA EMPRESA (PLACAS ATIVAS)
 # =====================================================================
 def buscar_placas_ativas_por_historico(data_fim_str):
     conn = psycopg2.connect(
@@ -72,22 +72,23 @@ def buscar_placas_ativas_por_historico(data_fim_str):
     df_placas = pd.read_sql_query(sql_placas, conn, params=(f"{data_fim_str} 23:59:59",))
     conn.close()
 
-    # Filtra os veículos que estavam ATIVOS no último histórico da data
     df_ativas = df_placas[df_placas["Situacao"].str.upper().str.contains("ATIVO", na=False)].copy()
     df_ativas["Tração"] = "NÃO INFORMADO"
 
     return df_ativas
 
 # =====================================================================
-# 3. EXTRAÇÃO VIA API GOBRAX
+# 3. EXTRAÇÃO VIA API GOBRAX (MÊS VIGENTE)
 # =====================================================================
 def consultar_placa_gobrax(row_veiculo, data_inicio_str, data_fim_str):
     placa = row_veiculo.Placa
     headers = {"Authorization": f"Bearer {TOKEN_GOBRAX}", "Accept": "application/json"}
+    
     params = {
         "startDate": data_inicio_str,
         "endDate": data_fim_str,
-        "vehicleIdentification": placa
+        "vehicleIdentification": placa,
+        "groupBy": "DAY"
     }
     
     linhas = []
@@ -95,16 +96,26 @@ def consultar_placa_gobrax(row_veiculo, data_inicio_str, data_fim_str):
         try:
             r = requests.get(URL_GOBRAX, headers=headers, params=params, timeout=30)
             if r.status_code == 200:
-                records = r.json().get("records", [])
+                res_json = r.json()
+                records = res_json.get("records") or res_json.get("data") or (res_json if isinstance(res_json, list) else [])
+                
                 if records:
                     for item in records:
-                        data_item = item.get("date") or item.get("startDate") or item.get("period")
+                        data_item = item.get("date") or item.get("startDate") or item.get("period") or item.get("data")
                         if not data_item:
                             continue
                         
                         dt_obj = datetime.strptime(str(data_item)[:10], "%Y-%m-%d")
 
+                        raw_km = item.get("totalMileage") or item.get("mileage") or item.get("distance") or item.get("kmTotal") or 0
+                        km_total = float(raw_km)
+                        if km_total > 100000:
+                            km_total = km_total / 1000.0
+
+                        consumo_total = float(item.get("totalConsumption") or item.get("consumption") or item.get("fuelConsumption") or 0)
+                        
                         linhas.append({
+                            "origem": "GOBRAX",
                             "ano": dt_obj.year,
                             "mes": dt_obj.month,
                             "data_registro": dt_obj.strftime("%Y-%m-%d"),
@@ -115,9 +126,9 @@ def consultar_placa_gobrax(row_veiculo, data_inicio_str, data_fim_str):
                             "tracao": row_veiculo.Tração,
                             "grupo_veiculos": row_veiculo.Grupo_de_Veiculos,
                             "nota_geral": float(item.get("generalScore") or item.get("score") or 0),
-                            "km_total": float(item.get("totalMileage") or item.get("mileage") or 0),
+                            "km_total": km_total,
                             "velocidade_media": float(item.get("averageSpeed") or item.get("avgSpeed") or 0),
-                            "consumo_total": float(item.get("totalConsumption") or item.get("consumption") or 0),
+                            "consumo_total": consumo_total,
                             "media_computador_bordo": float(item.get("boardComputerAverage") or item.get("averageConsumption") or 0),
                             "odometro": float(item.get("odometer") or item.get("endOdometer") or 0)
                         })
@@ -129,11 +140,11 @@ def consultar_placa_gobrax(row_veiculo, data_inicio_str, data_fim_str):
     return []
 
 # =====================================================================
-# 4. GRAVAÇÃO NO SUPABASE
+# 4. GRAVAÇÃO NO SUPABASE (UPSERT)
 # =====================================================================
 def salvar_no_supabase(registros):
     if not registros:
-        print("⚠️ Nenhum registro com movimentação no período.")
+        print("⚠️ Nenhum registro útil capturado para salvar no Supabase.")
         return
 
     conn = psycopg2.connect(
@@ -142,12 +153,13 @@ def salvar_no_supabase(registros):
     cursor = conn.cursor()
 
     sql_insert = """
-    INSERT INTO public.historico_gobrax (
-        ano, mes, data_registro, frota, placa, marca, modelo, tracao, 
+    INSERT INTO public.historico_telemetria_consolidado (
+        origem, ano, mes, data_registro, frota, placa, marca, modelo, tracao, 
         grupo_veiculos, nota_geral, km_total, velocidade_media, 
         consumo_total, media_computador_bordo, odometro
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     ON CONFLICT (placa, data_registro) DO UPDATE SET
+        origem = EXCLUDED.origem,
         marca = EXCLUDED.marca,
         modelo = EXCLUDED.modelo,
         nota_geral = EXCLUDED.nota_geral,
@@ -160,7 +172,7 @@ def salvar_no_supabase(registros):
 
     dados_tupla = [
         (
-            r["ano"], r["mes"], r["data_registro"], r["frota"], r["placa"],
+            r["origem"], r["ano"], r["mes"], r["data_registro"], r["frota"], r["placa"],
             r["marca"], r["modelo"], r["tracao"], r["grupo_veiculos"],
             r["nota_geral"], r["km_total"], r["velocidade_media"],
             r["consumo_total"], r["media_computador_bordo"], r["odometro"]
@@ -177,32 +189,31 @@ def salvar_no_supabase(registros):
     cursor.close()
     conn.close()
 
-    print(f"✅ {len(registros)} registros sincronizados com sucesso no Supabase!")
+    print(f"✅ {len(registros)} registros salvos/atualizados com sucesso no Supabase!")
 
 # =====================================================================
-# 5. EXECUÇÃO PRINCIPAL
+# 5. EXECUÇÃO PRINCIPAL (MÊS VIGENTE CONTÍNUO + FILTRO DE ZERADOS)
 # =====================================================================
 def executar_rotina_automatica():
     hoje = datetime.now()
     ontem = hoje - timedelta(days=1)
-
-    primeiro_dia_periodo = ontem.replace(day=1)
     
-    data_inicio_str = primeiro_dia_periodo.strftime("%Y-%m-%d 00:00:00")
+    # Define automaticamente o 1º dia do mês corrente
+    primeiro_dia_mes_atual = ontem.replace(day=1)
+    
+    data_inicio_str = primeiro_dia_mes_atual.strftime("%Y-%m-%d 00:00:00")
     data_fim_str = ontem.strftime("%Y-%m-%d 23:59:59")
     data_fim_apenas = ontem.strftime("%Y-%m-%d")
 
-    print(f"🚀 INICIANDO SINCRONIZAÇÃO GOBRAX ({primeiro_dia_periodo.strftime('%d/%m/%Y')} até {ontem.strftime('%d/%m/%Y')})")
+    print(f"🚀 SINCRONIZANDO MÊS ATUAL ({primeiro_dia_mes_atual.strftime('%d/%m/%Y')} até {ontem.strftime('%d/%m/%Y')})")
 
-    # 1. Busca placas ativas na data com marcas e modelos reais
     df_placas = buscar_placas_ativas_por_historico(data_fim_apenas)
-    print(f"📌 {len(df_placas)} veículos ATIVOS encontrados na foto de {data_fim_apenas}.")
+    print(f"📌 {len(df_placas)} veículos ATIVOS encontrados.")
 
     if df_placas.empty:
-        print("⚠️ Nenhum veículo ativo retornado na consulta SQL.")
+        print("⚠️ Nenhum veículo ativo retornado.")
         return
 
-    # 2. Consulta API Gobrax
     registros = []
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = [
@@ -212,12 +223,12 @@ def executar_rotina_automatica():
         for f in tqdm(as_completed(futures), total=len(futures), desc="Sincronizando Gobrax"):
             res_list = f.result()
             for res in res_list:
-                if res["km_total"] > 0 or res["consumo_total"] > 0:
+                # Descarta dias sem rodagem ou sem consumo (zerados/vazios)
+                if (res["km_total"] and res["km_total"] > 0) or (res["consumo_total"] and res["consumo_total"] > 0):
                     registros.append(res)
 
-    # 3. Upsert no Supabase
     salvar_no_supabase(registros)
-    print("🎉 PROCESSAMENTO CONCLUÍDO COM SUCESSO!\n")
+    print("🎉 PROCESSAMENTO DO MÊS VIGENTE CONCLUÍDO COM SUCESSO!\n")
 
 if __name__ == "__main__":
     executar_rotina_automatica()
