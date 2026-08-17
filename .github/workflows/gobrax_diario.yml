@@ -2,9 +2,9 @@ name: Sincronizador Gobrax Mês Atual
 
 on:
   schedule:
-    # Roda todos os dias às 06:00 UTC (03:00 Horário de Brasília)
+    # Executa todos os dias às 06:00 UTC (03:00 Horário de Brasília)
     - cron: '0 6 * * *'
-  workflow_dispatch: # Permite rodar manualmente com 1 clique no GitHub
+  workflow_dispatch: # Habilita o botão para rodar manualmente
 
 jobs:
   sync-gobrax:
