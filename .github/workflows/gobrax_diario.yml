@@ -2,8 +2,8 @@ name: Sincronizador Gobrax Mês Atual
 
 on:
   schedule:
-    # Executa todos os dias às 06:00 UTC (03:00 Horário de Brasília)
-    - cron: '0 6 * * *'
+    # Executa todos os dias às 12:17 UTC (09:17 Horário de Brasília)
+    - cron: '17 12 * * *'
   workflow_dispatch: # Habilita o botão para rodar manualmente
 
 jobs:
