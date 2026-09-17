@@ -23,12 +23,12 @@ DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 
-# Banco Supabase (Destino) - Com Fallback Automático caso o Secret venha vazio
-SUPA_HOST = os.getenv("DB_HOST_SUPA") or "aws-0-sa-east-1.pooler.supabase.com"
-SUPA_PORT = os.getenv("DB_PORT_SUPA") or "6543"
-SUPA_NAME = os.getenv("DB_NAME_SUPA") or "postgres"
-SUPA_USER = os.getenv("DB_USER_SUPA") or "postgres.ndnwtrnjclsbihvthdrg"
-SUPA_PASSWORD = os.getenv("DB_PASSWORD_SUPA") or "35XLBG0ReOAUVjin"
+# Banco Neon (Destino) - Com Fallback Automático
+SUPA_HOST = os.getenv("DB_HOST_SUPA") or "ep-royal-brook-b5xei33y-pooler.c-7.us-east-2.aws.neon.tech"
+SUPA_PORT = os.getenv("DB_PORT_SUPA") or "5432"
+SUPA_NAME = os.getenv("DB_NAME_SUPA") or "neondb"
+SUPA_USER = os.getenv("DB_USER_SUPA") or "neondb_owner"
+SUPA_PASSWORD = os.getenv("DB_PASSWORD_SUPA") or "npg_dbL9ayQKu5oS"
 
 MAX_WORKERS = 10
 
